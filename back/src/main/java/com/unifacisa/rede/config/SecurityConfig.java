@@ -1,5 +1,9 @@
 package com.unifacisa.rede.config;
 
+import com.unifacisa.rede.entity.UserEntity;
+import com.unifacisa.rede.login.LoggedUserCache;
+import com.unifacisa.rede.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -12,7 +16,6 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -24,40 +27,54 @@ import java.util.List;
 @EnableWebSecurity
 public class SecurityConfig {
 
+    @Autowired
+    UserRepository userRepository;
+
+    @Autowired
+    LoggedUserCache loggedUserCache;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // API REST → geralmente sem sessão e sem CSRF
                 .csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 .authorizeHttpRequests(auth -> auth
-                        // libera o que você quiser público:
                         .requestMatchers(HttpMethod.GET, "/posts/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/users/**").permitAll()
-                        // se tiver swagger/h2, pode liberar aqui também:
-                        //.requestMatchers("/h2-console/**").permitAll()
-
-                        // TODO: o resto precisa estar autenticado
+                        .requestMatchers(HttpMethod.POST, "/auth/register").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/auth/logout").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/auth/me").permitAll()
+                        .requestMatchers("/auth/register").permitAll()
                         .anyRequest().authenticated()
                 )
-
-                // autenticação HTTP Basic (mais simples pra começar)
                 .httpBasic(Customizer.withDefaults());
 
         return http.build();
     }
 
-    // Usuário em memória só pra começar (admin / 123456)
     @Bean
     public UserDetailsService userDetailsService(PasswordEncoder encoder) {
+
         UserDetails admin = User.withUsername("admin")
-                .password(encoder.encode("123456"))
+                .password(encoder.encode("admin"))
                 .roles("ADMIN")
                 .build();
 
-        return new InMemoryUserDetailsManager(admin);
+        return username -> {
+            if (username.equals("admin")) {
+                return admin;
+            }
+
+            UserEntity user = loggedUserCache.getLoggedUser();
+
+            return User.withUsername(user.getUsername())
+                    .password(user.getPassword())
+                    .roles("USER")
+                    .build();
+        };
     }
 
     @Bean
@@ -65,7 +82,6 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
-    // CORS pra permitir seu frontend (Vite em 5173, por exemplo)
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();

@@ -1,17 +1,22 @@
 package com.unifacisa.rede.controller;
 
+import com.unifacisa.rede.config.BasicAuthValidator;
 import com.unifacisa.rede.dto.PostCreateDTO;
 import com.unifacisa.rede.dto.PostDTO;
 import com.unifacisa.rede.entity.PostEntity;
 import com.unifacisa.rede.entity.UserEntity;
+import com.unifacisa.rede.login.LoggedUserCache;
 import com.unifacisa.rede.mapper.PostMapper;
 import com.unifacisa.rede.repository.PostRepository;
 import com.unifacisa.rede.repository.UserRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.ArrayList;
-import java.util.List;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/posts")
@@ -21,6 +26,12 @@ public class PostController {
     private final UserRepository userRepository;
 
     private final PostRepository postRepository;
+
+    @Autowired
+    BasicAuthValidator basicAuthValidator;
+
+    @Autowired
+    LoggedUserCache loggedUserCache;
 
     @Autowired
     PostMapper postMapper;
@@ -41,18 +52,24 @@ public class PostController {
     }
 
     @PostMapping
-    public PostDTO createPost(@RequestBody PostCreateDTO postCreateDTO) {
-        UserEntity user = userRepository.findById(postCreateDTO.getUserID()).orElse(null);
+    public PostDTO createPost(
+            @RequestBody PostCreateDTO dto,
+            HttpServletRequest request
+    ) {
 
-        PostDTO postDTO = new PostDTO();
-        postDTO.setMessage(postCreateDTO.getMessage());
+        basicAuthValidator.validateBasicAuth(request);
 
-        PostEntity post = toEntity(postDTO);
+        UserEntity user = loggedUserCache
+                .getLoggedUser();
+
+        PostEntity post = new PostEntity();
         post.setUser(user);
+        post.setMessage(dto.getMessage());
+        post.setCreationDate(LocalDateTime.now());
 
-        PostEntity p = postRepository.save(post);
+        postRepository.save(post);
 
-        return toDto(p);
+        return PostMapper.INSTANCE.toDto(post);
     }
 
     @PutMapping("/{id}")
@@ -71,12 +88,23 @@ public class PostController {
         return "Post deletado com sucesso!";
     }
 
-    private PostDTO toDto(PostEntity postEntity) {
-        return postMapper.toDto(postEntity);
+    @GetMapping("/feed")
+    @Cacheable("feed")
+    public List<PostDTO> feed(Authentication auth) {
+        UserEntity user = userRepository.findByUsername(auth.getName()).orElseThrow();
+
+        Set<Long> ids = user.getFriends()
+                .stream().map(UserEntity::getId).collect(Collectors.toSet());
+        ids.add(user.getId());
+
+        List<PostEntity> posts = postRepository.findAll();
+        List<PostEntity> postsFiltered =posts.stream().filter(p -> ids.contains(p.getUser().getId())).collect(Collectors.toList());
+
+        return PostMapper.INSTANCE.toDTOList(postsFiltered);
     }
 
-    private PostEntity toEntity(PostDTO postDTO) {
-        return postMapper.toEntity(postDTO);
+    private PostDTO toDto(PostEntity postEntity) {
+        return postMapper.toDto(postEntity);
     }
 
     private List<PostDTO> toDtoList(List<PostEntity> posts) {
@@ -86,4 +114,5 @@ public class PostController {
         }
         return postDTOList;
     }
+
 }

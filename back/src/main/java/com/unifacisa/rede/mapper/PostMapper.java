@@ -5,6 +5,8 @@ import com.unifacisa.rede.entity.PostEntity;
 import org.mapstruct.Mapper;
 import org.mapstruct.factory.Mappers;
 
+import java.util.List;
+
 @Mapper(componentModel = "spring")
 public interface PostMapper {
 
@@ -13,4 +15,7 @@ public interface PostMapper {
     PostEntity toEntity(PostDTO dto);
 
     PostDTO toDto(PostEntity entity);
+
+    List<PostDTO> toDTOList(List<PostEntity> entities);
+
 }

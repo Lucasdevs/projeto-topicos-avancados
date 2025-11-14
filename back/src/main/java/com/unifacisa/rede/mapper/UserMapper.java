@@ -5,6 +5,8 @@ import com.unifacisa.rede.entity.UserEntity;
 import org.mapstruct.Mapper;
 import org.mapstruct.factory.Mappers;
 
+import java.util.List;
+
 @Mapper(componentModel = "spring")
 public interface UserMapper {
 
@@ -13,4 +15,6 @@ public interface UserMapper {
     UserDTO toDTO(UserEntity entity);
 
     UserEntity toEntity(UserDTO dto);
+
+    List<UserDTO> toDTOList(List<UserEntity> entities);
 }

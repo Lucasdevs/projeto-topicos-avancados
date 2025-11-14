@@ -3,6 +3,8 @@ package com.unifacisa.rede.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
+
 @Data
 @Entity
 @Table(name = "post", schema = "rede")
@@ -17,6 +19,12 @@ public class PostEntity {
 
     @Column(length = 500, nullable = false, name = "message")
     private String message;
+
+    @Column(length = 1000, name = "image")
+    private String image;
+
+    @Column(name = "creationdate")
+    private LocalDateTime creationDate;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @ToString.Exclude
