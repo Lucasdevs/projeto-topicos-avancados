@@ -7,29 +7,26 @@ Projeto desenvolvido para a disciplina de Tópicos Avançados, contendo autentic
 
 
 🛠 Tecnologias Utilizadas
+
 Backend
 
 Java 17+
 
 Spring Boot
 
-Spring Web
-
 Spring Data JPA
 
 Spring Security
-
-Validation
-
-Cache Abstraction
 
 MapStruct
 
 Lombok
 
-H2 / PostgreSQL
+PostgreSQL
 
 Maven
+
+
 
 Frontend
 
